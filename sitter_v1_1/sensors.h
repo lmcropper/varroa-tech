@@ -37,9 +37,10 @@
 struct Sensor_Data{
     double temperature;
     double humidity;
-    int voc_MICS;
-    int voc_SGP31;
-    int voc_SGP40;
+    int tvoc_MICS;
+    int tvoc_SGP30;
+    int co2_SGP30;
+    int tvoc_SGP41;
 };
 
 bool sensors_init();
@@ -51,6 +52,8 @@ bool sensors_AHT20_init();
 bool sensors_SGP30_init();
 
 bool sensors_SGP41_init();
+
+bool sensors_MICS_init();
 
 bool sensors_AHT20_getData();
 
