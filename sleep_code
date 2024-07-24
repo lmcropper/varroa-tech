@@ -1,0 +1,52 @@
+#include <WiFi.h>
+#include <esp_wifi.h>
+
+
+#define LED 2
+// Time to sleep (in microseconds)
+#define uS_TO_S_FACTOR 1000000  // Conversion factor for micro seconds to seconds
+#define TIME_TO_SLEEP  10    // Time ESP32 will go to sleep (6 hours = 21600 seconds)
+
+// RTC_DATA_ATTR attribute makes variable retain its value during deep sleep
+RTC_DATA_ATTR int bootCount = 0;
+
+// Function that will be executed when ESP32 wakes up
+void performTask() {
+  // Your task here. For example, print a message:
+  Serial.println("ESP32 just woke up!");
+
+  // Increment boot count
+  bootCount++;
+  Serial.println("Boot number: " + String(bootCount));
+
+  // Your actual code for the needed function goes here
+  // ...
+}
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(115200);
+  delay(1000); // Give time for serial monitor to connect
+
+  // Print the reason for waking up
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_TIMER: Serial.println("Wakeup caused by timer"); break;
+    default: Serial.println("Wakeup was not caused by deep sleep"); break;
+  }
+
+  // Perform the task
+  performTask();
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, HIGH);
+
+  // Go to deep sleep for 6 hours
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  Serial.println("Going to sleep now for 6 hours...");
+  delay(1000);
+  esp_deep_sleep_start();
+}
+
+void loop() {
+  // This will never be reached
+}
