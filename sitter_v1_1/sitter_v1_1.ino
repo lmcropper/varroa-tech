@@ -21,9 +21,9 @@ char outLine[50];
 Sensor_Data sensorData {0, 0, 0, 0, 0};
 
 void setup(){
-    //Wire.begin();
+    Wire.begin();
     Serial.begin(SERIAL_BAUD);
-    //sensors_init();
+    sensors_init();
     sd_init(true);
     pinMode(PIN_FAN_HIGH, OUTPUT);
     pinMode(PIN_FAN_LOW, OUTPUT);
@@ -32,13 +32,11 @@ void setup(){
 }
 
 void loop(){
-    //sensorData = sensors_getData();
-    sprintf(outLine, "%f, %f, %d, %d, %d, %d", sensorData.temperature, sensorData.humidity, sensorData.tvoc_MICS, sensorData.tvoc_SGP30, sensorData.co2_SGP30, sensorData.tvoc_SGP41);
+    sensorData = sensors_getData();
+    sprintf(outLine, "%f, %f, %d, %d, %d, %d\n", sensorData.temperature, sensorData.humidity, sensorData.tvoc_MICS, sensorData.tvoc_SGP30, sensorData.co2_SGP30, sensorData.tvoc_SGP41);
     Serial.println(outLine);
     sd_appendFile(SD, outLine, true);
     //digitalWrite(PIN_FAN_HIGH, HIGH);
     //digitalWrite(PIN_FAN_LOW, LOW);
     delay(1000);
-
-
 }

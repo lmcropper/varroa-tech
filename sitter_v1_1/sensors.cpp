@@ -14,10 +14,10 @@ uint16_t sgp41_conditioning_s = 10; //Conditioning timer for SGP41
 Sensor_Data sensorOutput {0, 0, 0, 0, 0, 0};
 
 bool sensors_init(){
-    // Serial.println("Initializing AHT20...");
-    // if(!sensors_AHT20_init()){
-    //     return 0;
-    // }
+    Serial.println("Initializing AHT20...");
+    if(!sensors_AHT20_init()){
+        return 0;
+    }
     Serial.println("Initializing SGP30...");
     if(!sensors_SGP30_init()){
         return 0;
@@ -31,7 +31,7 @@ bool sensors_init(){
 
 //Get readings from each sensor and return struct with all data values
 Sensor_Data sensors_getData(){
-    //sensors_AHT20_getData();
+    sensors_AHT20_getData();
     sensors_SGP30_getData();
     sensors_MICS_getData();
     return sensorOutput;
