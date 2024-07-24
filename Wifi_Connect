@@ -1,0 +1,188 @@
+  #include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <Preferences.h>
+
+Preferences preferences;
+
+const char* ap_ssid = "ESP32_Config";
+const char* ap_password = "12345678";
+
+WebServer server(80);
+DNSServer dnsServer;
+
+const byte DNS_PORT = 53;
+
+String ssid;
+String password;
+
+// Define the pin for the built-in LED
+const int ledPin = 2;
+
+// MongoDB Atlas Data API details
+const char* apiKey = "These are secret";
+const char* mongoEndpoint = "These are secret";
+const char* mongoDatabase = "These are secred";
+const char* mongoCollection = "These are secret";
+
+void handleRoot() {
+  String html = "<html><body><h1>WiFi Config</h1><form action='/get' method='POST'>";
+  html += "SSID: <input type='text' name='ssid'><br>";
+  html += "Password: <input type='password' name='password'><br>";
+  html += "<input type='submit' value='Submit'></form></body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleForm() {
+  ssid = server.arg("ssid");
+  password = server.arg("password");
+  server.send(200, "text/html", "<html><body><h1>Credentials Received</h1></body></html>");
+  saveCredentials(ssid.c_str(), password.c_str());
+  delay(1000);
+  ESP.restart();
+}
+
+void saveCredentials(const char* ssid, const char* password) {
+  preferences.begin("wifi", false);
+  preferences.putString("ssid", ssid);
+  preferences.putString("password", password);
+  preferences.end();
+}
+
+void getCredentials(String &ssid, String &password) {
+  preferences.begin("wifi", true);
+  ssid = preferences.getString("ssid", "");
+  password = preferences.getString("password", "");
+  preferences.end();
+}
+
+void handleLED() {
+  String html = "<html><body><h1>LED Control</h1>";
+  html += "<form action='/setColor' method='POST'>";
+  html += "<input type='radio' name='color' value='red'> On<br>";
+  html += "<input type='radio' name='color' value='blue'> Off<br>";
+  html += "<input type='submit' value='Set Color'></form></body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleSetColor() {
+  String color = server.arg("color");
+  String statusMessage;
+
+  if (color == "red") {
+    // Simulate red color by turning LED on
+    digitalWrite(ledPin, HIGH); 
+    statusMessage = "Turned Light On";
+  } else if (color == "blue") {
+    // Simulate blue color by turning LED off
+    digitalWrite(ledPin, LOW); 
+    statusMessage = "Turned Light Off";
+  }
+
+  // Send the result to MongoDB
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(mongoEndpoint);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("api-key", apiKey);
+
+    StaticJsonDocument<200> doc;
+    doc["dataSource"] = "Test-ESP32"; // Replace with your data source name
+    doc["database"] = mongoDatabase;
+    doc["collection"] = mongoCollection;
+    JsonObject document = doc.createNestedObject("document");
+    if(color == "red"){
+      document["color"] = "Turned Light On";
+    }
+    else if(color == "blue"){
+      document["color"] = "Turned Light Off";
+    }
+    //document["color"] = color;
+
+    String requestBody;
+    serializeJson(doc, requestBody);
+
+    int httpResponseCode = http.POST(requestBody);
+
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.println(httpResponseCode);
+      Serial.println(response);
+    } else {
+      Serial.print("Error on sending POST: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end();
+  }
+
+  server.send(200, "text/html", "<html><body><h1>Color Set</h1><a href='/'>Back</a></body></html>");
+}
+
+void handleReset() {
+  preferences.begin("wifi", false);
+  preferences.clear();
+  preferences.end();
+  server.send(200, "text/html", "<html><body><h1>Preferences Cleared. Restarting...</h1></body></html>");
+  delay(1000);
+  ESP.restart();
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+
+  // Initialize the built-in LED pin
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW); // Turn LED off initially
+
+  // Retrieve stored credentials
+  getCredentials(ssid, password);
+
+  if (ssid.isEmpty() || password.isEmpty()) {
+    // No credentials saved, start in AP mode
+    WiFi.softAP(ap_ssid, ap_password);
+    Serial.println("Access Point Started");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.softAPIP());
+    
+    // Start DNSServer to redirect all DNS queries to the ESP32
+    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+    
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/get", HTTP_POST, handleForm);
+    server.on("/reset", HTTP_GET, handleReset);
+
+    server.begin();
+    Serial.println("HTTP server started");
+  } else {
+    // Credentials found, connect to WiFi network
+    WiFi.begin(ssid.c_str(), password.c_str());
+    Serial.print("Connecting to WiFi...");
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(1000);
+      Serial.print(".");
+    }
+    Serial.println();
+    Serial.println("Connected to WiFi");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+
+    server.on("/", HTTP_GET, handleLED);
+    server.on("/setColor", HTTP_POST, handleSetColor);
+    server.on("/reset", HTTP_GET, handleReset);
+
+    server.begin();
+  }
+}
+
+void loop() {
+  if (ssid.isEmpty() || password.isEmpty()) {
+    dnsServer.processNextRequest();
+    server.handleClient();
+  } else {
+    server.handleClient();
+  }
+}
