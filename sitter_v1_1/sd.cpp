@@ -18,7 +18,7 @@ bool sd_init(bool printDebug){
     return 0;
   }
   
-  sprintf(fileName, "/sensor_data_%d.txt", millis());
+  sprintf(fileName, "/sensor_data_%d.txt", 1);
   sd_appendFile(SD, fileName, "Start of sensor data:\n");
   sd_appendFile(SD, fileName, "Temp, Humidity, MICS, SGP30(TVOC), SGP30(CO2), SGP41\n");
 
